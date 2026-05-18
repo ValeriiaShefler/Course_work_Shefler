@@ -76,6 +76,24 @@
             object-fit: cover;
             margin-bottom: 10px;
         }
+
+        .settings-message {
+            margin-top: 10px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: block !important;
+        }
+
+        .settings-message.success {
+            background-color: #4caf50 !important;
+            color: white !important;
+        }
+
+        .settings-message.error {
+            background-color: #f44336 !important;
+            color: white !important;
+        }
     </style>
 </head>
 <body>
@@ -150,32 +168,7 @@
         if (!token) {
             window.location.replace('login.html');
         }
-        
-        async function loadUserInfo() {
-            try {
-                const response = await fetch('http://localhost:8001/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (response.status === 401) {
-                    localStorage.clear();
-                    window.location.replace('login.html');
-                    return;
-                }
-                
-                const user = await response.json();
-                document.getElementById('profileUsername').innerText = user.username;
-                document.getElementById('profileEmail').innerText = user.email;
-                
-                const avatar = localStorage.getItem('avatar');
-                if (avatar && avatar !== 'null') {
-                    document.getElementById('profileAvatar').src = avatar;
-                }
-            } catch (error) {
-                console.error('Error loading user info:', error);
-            }
-        }
-        
+              
         async function changeEmail() {
             const newEmail = document.getElementById('newEmail').value;
             const messageDiv = document.getElementById('emailMessage');
@@ -207,7 +200,17 @@
                         messageDiv.innerHTML = '';
                     }, 3000);
                 } else {
-                    messageDiv.innerHTML = '❌ ' + (data.detail || 'Ошибка обновления email');
+                    let errorMessage = 'Ошибка обновления email';
+                    if (data.detail) {
+                        if (typeof data.detail === 'string') {
+                            errorMessage = data.detail;
+                        } else if (Array.isArray(data.detail) && data.detail[0]?.msg) {
+                            errorMessage = data.detail[0].msg;
+                        } else if (data.detail?.msg) {
+                            errorMessage = data.detail.msg;
+                        }
+                    }
+                    messageDiv.innerHTML = '❌ ' + errorMessage;
                     messageDiv.className = 'settings-message error';
                 }
             } catch (error) {
@@ -215,7 +218,7 @@
                 messageDiv.className = 'settings-message error';
             }
         }
-        
+
         async function changeUsername() {
             const newUsername = document.getElementById('newUsername').value;
             const messageDiv = document.getElementById('usernameMessage');
@@ -364,15 +367,56 @@
             }
         }
         
-        loadUserInfo();
-        
-        window.addEventListener('pageshow', function(event) {
-            if (event.persisted) {
-                if (!localStorage.getItem('token')) {
-                    window.location.replace('login.html');
-                }
-                loadUserInfo();
+        async function loadUserInfo() {
+            const savedUsername = localStorage.getItem('username');
+            const savedEmail = localStorage.getItem('email');
+            const savedAvatar = localStorage.getItem('avatar');
+
+            if (savedUsername) {
+                document.getElementById('profileUsername').innerText = savedUsername;
             }
+            if (savedEmail) {
+                document.getElementById('profileEmail').innerText = savedEmail;
+            }
+            if (savedAvatar && savedAvatar !== 'null') {
+                document.getElementById('profileAvatar').src = savedAvatar;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8001/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.status === 401) {
+                    localStorage.clear();
+                    window.location.replace('login.html');
+                    return;
+                }
+                
+                const user = await response.json();
+                document.getElementById('profileUsername').innerText = user.username;
+                document.getElementById('profileEmail').innerText = user.email;
+                
+                // Сохраняем в localStorage
+                localStorage.setItem('username', user.username);
+                localStorage.setItem('email', user.email);  // ← ДОБАВИТЬ
+                
+                const avatarImg = document.getElementById('profileAvatar');
+                if (user.avatar && user.avatar !== 'null' && user.avatar !== '') {
+                    avatarImg.src = user.avatar;
+                    localStorage.setItem('avatar', user.avatar);
+                } else if (savedAvatar && savedAvatar !== 'null') {
+                    avatarImg.src = savedAvatar;
+                } else {
+                    avatarImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=667eea&color=fff`;
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadUserInfo();
         });
     </script>
 </body>

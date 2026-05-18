@@ -307,11 +307,12 @@ button:hover {
 }
 
 .avatar {
-    width: 40px;
-    height: 40px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
-    background: #f0f0f0;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .stats {
@@ -615,6 +616,23 @@ body.dark-mode .modal-body select {
 
 .cancel-btn:hover {
     background: #777;
+}
+
+.settings-message {
+    margin-top: 10px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.settings-message.success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.settings-message.error {
+    background-color: #f44336;
+    color: white;
 }
 
 @keyframes fadeIn {
