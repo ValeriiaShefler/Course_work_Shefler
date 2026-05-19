@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth_service:
+    build: ./auth_service
+    container_name: auth_service
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./auth_service/.env
+    networks:
+      - microservices_network
+    volumes:
+      - ./alembic.ini:/app/alembic.ini
+      - ./migrations:/app/migrations
+      - ./database_models.py:/app/database_models.py
+
+  task_service:
+    build: ./task_service
+    container_name: task_service
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./task_service/.env
+    networks:
+      - microservices_network
+    volumes:
+      - ./alembic.ini:/app/alembic.ini
+      - ./migrations:/app/migrations
+      - ./database_models.py:/app/database_models.py
+
+volumes:
+  postgres_data:
+
+networks:
+  microservices_network:
+    driver: bridge

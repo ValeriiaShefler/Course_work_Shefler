@@ -1,0 +1,167 @@
+# Auth Service
+
+## Задачи сервиса
+- Регистрация новых пользователей (email, username, пароль, аватарка)
+- Аутентификация (логин) с выдачей JWT-токена
+- Проверка валидности JWT-токенов для других сервисов (межсервисное взаимодействие)
+- Управление профилем: смена email, username, пароля
+- Удаление аккаунта с подтверждением пароля
+
+## Архитектцура
+
+Сервис построен с использованием модульной архитектуры:
+
+| Файл | Назначение |
+|------|-------------|
+| `app.py` | Точка входа, настройка CORS |
+| `routes.py` | API эндпоинты |
+| `models.py` | Pydantic модели для валидации данных |
+| `database.py` | Подключение к БД (SQLAlchemy), модели таблиц |
+| `users.py` | CRUD операции с пользователями (ORM) |
+| `auth.py` | JWT функции (создание, проверка токена, хеширование паролей) |
+| `config.py` | Константы и сообщения об ошибках |
+| `settings.py` | Pydantic Settings для переменных окружения |
+| `migrations/` | Миграции Alembic для управления схемой БД (в корне проекта)|
+
+## Межсервисное взаимодействие
+
+Task Service обращается к эндпоинту `GET /verify` для проверки JWT-токенов. Сервис не хранит состояние сессий — вся информация закодирована в самом токене.
+
+## Структура базы данных
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)  
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)  
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)  
+    avatar: Mapped[str] = mapped_column(String, nullable=True)  
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())  
+
+## Переменные окружения, в том числе секретный JWT ключ, уникальный для каждого развертывания
+
+    DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/taskmanager  
+    JWT_SECRET_KEY=your-secret-key-change-this  
+    JWT_ALGORITHM=HS256  
+    JWT_EXPIRE_MINUTES=60  
+    MIN_PASSWORD_LENGTH=6  
+    MIN_USERNAME_LENGTH=3  
+    PORT=8001  
+
+## Миграции базы данных  
+
+Миграции находятся в корне проекта и   управляются через Alembic.
+
+## Подготовка к запуску  
+
+Перед запуском необходимо обязательно скопируйте файл с примером переменных окружения .env.example ф файл .env в папке auth_service, например, воспользовавшись командой:  
+    
+    cp .env.example .env  
+
+Также необходимо обязательно сгенерировать свой уникальный с екрестный ключ и заменить JWT_SECRET_KEY в .env:  
+
+    вариант для Linux/Mac: openssl rand -hex 32
+
+    вариант для Python: python -c "import secrets; print(secrets.token_urlsafe(32))"  
+
+При необходимости можно отредактировать и другие переменные  
+
+## Запуск сервиса  
+1. Через docker-compose из корня проекта (docker-compose версии от 2.x и выше):  
+
+    docker-compose up --build  
+    docker-compose exec auth_service alembic upgrade head  
+
+2. Или же локально:  
+
+    cd auth_service  
+    pip install -r requirements.txt  
+    alembic upgrade head  
+    uvicorn app:app --host 0.0.0.0 --port 8001 --reload  
+
+## API Endpoints
+
+1. POST 	/register            регистрация  
+2. POST     /login               авторизация  
+3. GET      /verify              проверка токена (для других сервисов)  
+4. GET      /me                  информация о себе  
+5. PUT      /change-email        смена почты  
+6. PUT      /change-username     смена никнейма  
+7. PUT      /change-password     cмена пароля  
+8. DELETE   /delete-account      удаление аккаунта  
+9. GET     	/health              проверка здоровья сервиса  
+
+## Доступ к API  
+
+1. Через Swagger UI (интерактивная документация)
+
+    В браузере открыть ссылку: http://localhost:8001/docs  
+
+2. Через curl. Рассматрим примеры запросов:
+
+    2.1 Регистрация:  
+
+        curl -X POST http://localhost:8001/register \
+            -H "Content-Type: application/json" \
+            -d '{
+                "username": "ivan",
+                "email": "ivan@example.com",
+                "password": "123456",
+                "avatar": ""
+            }'
+
+    2.2 Авторизация:  
+
+        curl -X POST http://localhost:8001/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ivan@example.com","password":"123456"}'
+
+    2.3 Смена никнейма (требуется токен):  
+    
+        curl -X PUT http://localhost:8001/change-username \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer <ваш_токен>" \
+            -d '{"username":"ivan123"}'  
+
+    2.4 Удаление аккаунта (требуется токен и пароль):
+
+        curl -X DELETE http://localhost:8001/delete-account \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer <ваш_токен>" \
+            -d '{"password":"123456"}'  
+
+3. Через веб-клиент о чем подробнее в readme.md в корне проекта  
+
+## Файловая структура  
+
+auth_service/  
+├── app.py  
+├── routes.py  
+├── models.py               #Pydantic модели  
+├── database.py             # подключение к БД  
+├── users.py                # CRUD операции с пользователями  
+├── auth.py                 # JWT и хеширование  
+├── config.py               #константы  
+├── settings.py             # Pydantic Settings  
+├── requirements.txt  
+├── Dockerfile  
+├── .env.example  
+└── readme.md  
+
+## Requirements  
+
+    fastapi==0.104.1  
+    uvicorn==0.24.0  
+    python-jose[cryptography]==3.3.0  
+    bcrypt==4.1.2  
+    asyncpg==0.29.0  
+    python-dotenv==1.0.0  
+    email-validator==2.1.0  
+    pydantic-settings==2.2.1  
+    alembic==1.13.1  
+    psycopg2-binary==2.9.9  
+    sqlalchemy==2.0.29  
+    httpx==0.25.1  
+
+В случае, если вам необходимо проверить работоспособность системы, необходимо отправить запрос curl http://localhost:8001/health и ждать ответ {"status":"ok"}.
