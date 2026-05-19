@@ -45,7 +45,7 @@ Task Service обращается к эндпоинту `GET /verify` для п�
 
 ## Миграции базы данных  
 
-Миграции применяются автоматически при запуске контейнера (команда alembic upgrade head встроена в CMD Dockerfile). 
+Миграции находятся в корне проекта и   управляются через Alembic. 
 
 ## Переменные окружения
 
@@ -65,13 +65,14 @@ PORT=8002
 1. Через docker-compose из корня проекта (docker-compose версии от 2.x и выше):  
 
     docker-compose up --build  
+    docker-compose exec task_service alembic upgrade head  
 
 2. Или же локально:  
 
-    cd task_service
-    pip install -r requirements.txt
+    cd task_service  
+    pip install -r requirements.txt  
     cd .. && alembic upgrade head && cd task_service  
-    uvicorn app:app --host 0.0.0.0 --port 8002 --reload
+    uvicorn app:app --host 0.0.0.0 --port 8002 --reload  
 
 ## API Endpoints
 

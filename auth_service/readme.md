@@ -51,7 +51,7 @@ class User(Base):
 
 ## Миграции базы данных  
 
-Миграции применяются автоматически при запуске контейнера (команда alembic upgrade head встроена в CMD Dockerfile).  
+Миграции находятся в корне проекта и   управляются через Alembic.
 
 ## Подготовка к запуску  
 
@@ -71,13 +71,14 @@ class User(Base):
 1. Через docker-compose из корня проекта (docker-compose версии от 2.x и выше):  
 
     docker-compose up --build  
+    docker-compose exec auth_service alembic upgrade head  
 
 2. Или же локально:  
 
-    cd auth_service
-    pip install -r requirements.txt
-    alembic upgrade head
-    uvicorn app:app --host 0.0.0.0 --port 8001 --reload
+    cd auth_service  
+    pip install -r requirements.txt  
+    alembic upgrade head  
+    uvicorn app:app --host 0.0.0.0 --port 8001 --reload  
 
 ## API Endpoints
 

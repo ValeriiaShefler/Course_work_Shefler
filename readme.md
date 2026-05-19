@@ -23,7 +23,7 @@ Course_work_Shefler/
 ├── .env.example # Пример переменных для Docker  
 ├── .gitignore # Исключения для git  
 ├── alembic.ini # Конфигурация миграций Alembic  
-├── models.py # Общие SQLAlchemy модели (User, Task)  
+├── database_models.py # Общие SQLAlchemy модели (User, Task)  
 ├── migrations/ # Миграции Alembic  
 │ ├── versions/  
 │ ├── env.py  
@@ -85,9 +85,11 @@ Course_work_Shefler/
 
 И вставьте полученный ключ в файл auth_service/.env  
 
-4. Запустите микросервисы (docker-compose версии от 2.x и выше):  
+4. Запустите микросервисы и примените миграции (docker-compose версии от 2.x и выше):  
 
     docker-compose up --build  
+    docker-compose exec auth_service alembic upgrade head  
+    docker-compose exec task_service alembic upgrade head  
 
 5. Запустите веб клиент в новом окне терминала:  
 

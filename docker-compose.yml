@@ -2,26 +2,26 @@ services:
   postgres:
     image: postgres:15
     container_name: postgres_db
-    environment: #переменные окружения для инициализации БД
+    environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432" #проброс порта хост:контейнер
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    env_file: #загрузка переменных из корневого .env
+    env_file:
       - .env
     networks:
       - microservices_network
-    healthcheck: # проверка готовности БД к приёму соединений
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   auth_service:
-    build: ./auth_service #сборка из Dockerfile в папке auth_serv
+    build: ./auth_service
     container_name: auth_service
     ports:
       - "8001:8001"
@@ -32,6 +32,10 @@ services:
       - ./auth_service/.env
     networks:
       - microservices_network
+    volumes:
+      - ./alembic.ini:/app/alembic.ini
+      - ./migrations:/app/migrations
+      - ./database_models.py:/app/database_models.py
 
   task_service:
     build: ./task_service
@@ -41,12 +45,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      auth_service:
-        condition: service_started
     env_file:
       - ./task_service/.env
     networks:
       - microservices_network
+    volumes:
+      - ./alembic.ini:/app/alembic.ini
+      - ./migrations:/app/migrations
+      - ./database_models.py:/app/database_models.py
 
 volumes:
   postgres_data:
