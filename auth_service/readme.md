@@ -162,5 +162,6 @@ auth_service/
     alembic==1.13.1  
     psycopg2-binary==2.9.9  
     sqlalchemy==2.0.29  
+    httpx==0.25.1  
 
 В случае, если вам необходимо проверить работоспособность системы, необходимо отправить запрос curl http://localhost:8001/health и ждать ответ {"status":"ok"}.

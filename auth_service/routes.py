@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import (
@@ -180,6 +181,15 @@ async def change_password(
     
     user_id = int(result["user_id"])
     
+    #получаем пользователя из БД
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail=config.ERROR_MESSAGES["user_not_found"])
+    
+    # проверка пароля
+    if not verify_password(request.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Неверный текущий пароль")
+    
     if len(request.new_password) < config.MIN_PASSWORD_LENGTH:
         raise HTTPException(status_code=400, detail=config.ERROR_MESSAGES["password_too_short"])
     
@@ -189,6 +199,7 @@ async def change_password(
 
 @router.delete("/delete-account")
 async def delete_account(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
@@ -197,7 +208,34 @@ async def delete_account(
         raise HTTPException(status_code=401, detail=config.ERROR_MESSAGES["invalid_token"])
     
     user_id = int(result["user_id"])
+    
+    #получение пароля
+    body = await request.json()
+    password = body.get("password")
+    
+    if not password:
+        raise HTTPException(status_code=400, detail="Пароль обязателен")
+    
+    #получаем пользователя из БД
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail=config.ERROR_MESSAGES["user_not_found"])
+    
+    # проверка пароля
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+    
+    # удаляем задачи пользователя (через Task Service)
+    import httpx
+    async with httpx.AsyncClient() as client:
+        await client.delete(
+            "http://task_service:8002/tasks/delete-all",
+            headers={"Authorization": f"Bearer {credentials.credentials}"}
+        )
+    
+    # Удаляем пользователя
     await delete_user(db, user_id)
+    
     return {"message": "Ваш аккаунт был успешно удален"}
 
 
