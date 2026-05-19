@@ -1,12 +1,27 @@
 # Auth Service
 
 ## Задачи сервиса
-- Регистрация новых пользователей
-- Аутентификация (логин)
-- Выдача JWT токенов
-- Проверка валидности JWT токенов для других сервисов
+- Регистрация новых пользователей (email, username, пароль, аватарка)
+- Аутентификация (логин) с выдачей JWT-токена
+- Проверка валидности JWT-токенов для других сервисов (межсервисное взаимодействие)
 - Управление профилем: смена email, username, пароля
 - Удаление аккаунта с подтверждением пароля
+
+## Архитектцура
+
+Сервис построен с использованием модульной архитектуры:
+
+| Файл | Назначение |
+|------|-------------|
+| `app.py` | Точка входа, настройка CORS |
+| `routes.py` | API эндпоинты |
+| `models.py` | Pydantic модели для валидации данных |
+| `database.py` | Подключение к БД (SQLAlchemy), модели таблиц |
+| `users.py` | CRUD операции с пользователями (ORM) |
+| `auth.py` | JWT функции (создание, проверка токена, хеширование паролей) |
+| `config.py` | Константы и сообщения об ошибках |
+| `settings.py` | Pydantic Settings для переменных окружения |
+| `migrations/` | Миграции Alembic для управления схемой БД (в корне проекта)|
 
 ## Межсервисное взаимодействие
 
@@ -14,22 +29,29 @@ Task Service обращается к эндпоинту `GET /verify` для п�
 
 ## Структура базы данных
 
-    CREATE TABLE users (  
-        id SERIAL PRIMARY KEY,  
-        email VARCHAR(255) UNIQUE NOT NULL,  
-        username VARCHAR(100) UNIQUE NOT NULL,  
-        password_hash VARCHAR(255) NOT NULL,  
-        avatar TEXT,  
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  
-    );  
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)  
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)  
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)  
+    avatar: Mapped[str] = mapped_column(String, nullable=True)  
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())  
 
 ## Переменные окружения, в том числе секретный JWT ключ, уникальный для каждого развертывания
 
-DATABASE_URL=postgresql://  postgres:postgres123@postgres:5432/taskmanager  
-JWT_SECRET_KEY=your-secret-key-change-this  
-JWT_ALGORITHM=HS256  
-JWT_EXPIRE_MINUTES=60  
-PORT=8001  
+    DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/taskmanager  
+    JWT_SECRET_KEY=your-secret-key-change-this  
+    JWT_ALGORITHM=HS256  
+    JWT_EXPIRE_MINUTES=60  
+    MIN_PASSWORD_LENGTH=6  
+    MIN_USERNAME_LENGTH=3  
+    PORT=8001  
+
+## Миграции базы данных  
+
+Миграции применяются автоматически при запуске контейнера (команда alembic upgrade head встроена в CMD Dockerfile).  
 
 ## Подготовка к запуску  
 
@@ -54,6 +76,7 @@ PORT=8001
 
     cd auth_service
     pip install -r requirements.txt
+    alembic upgrade head
     uvicorn app:app --host 0.0.0.0 --port 8001 --reload
 
 ## API Endpoints
@@ -112,11 +135,18 @@ PORT=8001
 ## Файловая структура  
 
 auth_service/  
-├── app.py              # основной код сервиса  
-├── requirements.txt    # зависимости Python  
-├── Dockerfile          # сборка Docker-образа  
-├── .env.example        # пример переменных окружения  
-└── readme.md           # документация    
+├── app.py  
+├── routes.py  
+├── models.py               #Pydantic модели  
+├── database.py             # подключение к БД  
+├── users.py                # CRUD операции с пользователями  
+├── auth.py                 # JWT и хеширование  
+├── config.py               #константы  
+├── settings.py             # Pydantic Settings  
+├── requirements.txt  
+├── Dockerfile  
+├── .env.example  
+└── readme.md  
 
 ## Requirements  
 
@@ -127,6 +157,9 @@ auth_service/
     asyncpg==0.29.0  
     python-dotenv==1.0.0  
     email-validator==2.1.0  
-    httpx==0.25.1  
+    pydantic-settings==2.2.1  
+    alembic==1.13.1  
+    psycopg2-binary==2.9.9  
+    sqlalchemy==2.0.29  
 
 В случае, если вам необходимо проверить работоспособность системы, необходимо отправить запрос curl http://localhost:8001/health и ждать ответ {"status":"ok"}.

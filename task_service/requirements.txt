@@ -9,3 +9,4 @@ httpx==0.25.1
 pydantic-settings==2.2.1
 alembic==1.13.1
 psycopg2-binary==2.9.9
+sqlalchemy==2.0.29

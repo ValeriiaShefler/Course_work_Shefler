@@ -6,6 +6,20 @@
 - Изоляция данных — пользователь видит только свои задачи
 - Управление статусами задач (ожидает → в прогрессе → завершена)
 
+## Архитектура  
+
+| Файл | Назначение |
+|------|-------------|
+| `app.py` | Точка входа, настройка CORS |
+| `routes.py` | API эндпоинты |
+| `models.py` | Pydantic модели для валидации данных |
+| `database.py` | Подключение к БД (SQLAlchemy), модели таблиц |
+| `tasks.py` | CRUD операции с задачами (ORM) |
+| `auth.py` | Проверка JWT через Auth Service |
+| `config.py` | Константы и сообщения об ошибках |
+| `settings.py` | Pydantic Settings для переменных окружения |
+| `migrations/` | Миграции Alembic (в корне проекта) |
+
 ## Межсервисное взаимодействие
 
 Task Service обращается к эндпоинту `GET /verify` для проверки JWT-токенов. Сервис не хранит состояние сессий — вся информация закодирована в самом токене:  
@@ -19,14 +33,19 @@ Task Service обращается к эндпоинту `GET /verify` для п�
 
 ## Структура базы данных
 
-    CREATE TABLE tasks (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        description TEXT,
-        status VARCHAR(50) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );  
+    class Task(Base):
+        __tablename__ = "tasks"
+        
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
+        user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+        title: Mapped[str] = mapped_column(String(255), nullable=False)
+        description: Mapped[str] = mapped_column(String, nullable=True)
+        status: Mapped[str] = mapped_column(String(50), server_default="pending")
+        created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())  
+
+## Миграции базы данных  
+
+Миграции применяются автоматически при запуске контейнера (команда alembic upgrade head встроена в CMD Dockerfile). 
 
 ## Переменные окружения
 
@@ -51,6 +70,7 @@ PORT=8002
 
     cd task_service
     pip install -r requirements.txt
+    cd .. && alembic upgrade head && cd task_service  
     uvicorn app:app --host 0.0.0.0 --port 8002 --reload
 
 ## API Endpoints
@@ -111,18 +131,32 @@ PORT=8002
 ## Файловая структура  
 
 task_service/  
-├── app.py              # основной код сервиса  
+├── app.py              # точка входа, настройка CORS  
+├── routes.py           #API эндпоинты  
+├── models.py           # Pydantic модели (валидация запросов/ответов)  
+├── database.py         #подключение к БД (SQLAlchemy engine, session)  
+├── tasks.py            # CRUD операции с задачами (ORM)  
+├── auth.py             # проверка JWT через Auth Service  
+├── config.py           # Константы и сообщения об ошибках  
+├── settings.py         # Pydantic Settings для переменных окружения  
 ├── requirements.txt    # зависимости Python  
-├── Dockerfile          # сборка Docker-образа  
+├── Dockerfile          #сборка Docker-образа  
 ├── .env.example        # пример переменных окружения  
-└── readme.md           # документация    
+└── readme.md           # Документация   
 
 ## Requirements  
 
     fastapi==0.104.1
     uvicorn==0.24.0
-    httpx==0.25.1
+    python-jose[cryptography]==3.3.0
+    bcrypt==4.1.2
     asyncpg==0.29.0
     python-dotenv==1.0.0
+    email-validator==2.1.0
+    httpx==0.25.1
+    pydantic-settings==2.2.1
+    alembic==1.13.1
+    psycopg2-binary==2.9.9
+    sqlalchemy==2.0.29
 
 В случае, если вам необходимо проверить работоспособность системы, необходимо отправить запрос curl http://localhost:8002/health и ждать ответ {"status":"ok"}.

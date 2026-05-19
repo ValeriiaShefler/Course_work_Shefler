@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import router
+from database import engine
 
 app = FastAPI(title="Auth Service")
 
@@ -15,8 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Подключаем роутер
 app.include_router(router)
 
 
@@ -28,4 +27,5 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
+    await engine.dispose()
     print("Shutting down...")
